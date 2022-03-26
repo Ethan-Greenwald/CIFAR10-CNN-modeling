@@ -84,7 +84,7 @@ class image_model(nn.Module):
                                                nn.ELU(),
                                                nn.Linear(100,num_categories))
 
-    def forward___(self, x):
+    def forward(self, x):
         x = self.conv_block(x)
         x = self.flatten(x)
 
@@ -95,43 +95,6 @@ class image_model(nn.Module):
             x = torch.reshape(x, (x.shape[0]*x.shape[1],))
             x = self.linear_elu_stack(x)
 
-        return x
-
-    def forward(self, x):
-        ToPILImage()(x).show()
-        images = []
-        x = self.conv2D(x)
-        print(f"Shape 1: {x.size()}")
-        for image in x:
-            images.append(ToPILImage()(image))
-        grid = image_grid(images, rows=8, cols=8)
-        grid.show()
-        
-        x = self.conv2D_hidden(x)
-        print(f"Shape 2: {x.size()}")
-        images = []
-        for image in x:
-            images.append(ToPILImage()(image))
-        grid = image_grid(images, rows=12, cols=12)
-        grid.show()
-        x = self.flatten(x)
-        try:
-            x = self.linear_elu_stack(x)
-        except:
-            x = torch.reshape(x, (x.shape[0]*x.shape[1],))
-            x = self.linear_elu_stack(x)
-        return x
-
-# Most basic model that functions using given data.
-# Used primarily for testing code functionality due
-# to its rapid training speed.
-class test_model(nn.Module):
-    def __init__(self, num_categories):
-        super(test_model, self).__init__()
-        self.test = nn.Sequential(nn.Flatten(), nn.LazyLinear(num_categories))
-    
-    def forward(self, x):
-        x = self.test(x)
         return x
 
 # Tests a model's accuracy against a dataset and returns it as a decimal.
