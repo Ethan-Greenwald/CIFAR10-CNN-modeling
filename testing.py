@@ -1,4 +1,4 @@
-from training import set_device, image_model, image_grid
+from training import set_device, image_model
 import torch
 import torch.nn as nn
 import numpy as np

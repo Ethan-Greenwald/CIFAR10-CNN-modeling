@@ -1,3 +1,4 @@
+from warnings import filterwarnings
 import torch
 import torch.nn as nn
 import numpy as np
@@ -6,6 +7,8 @@ from tqdm import tqdm
 from torchvision.transforms import ToPILImage
 import PIL.Image as Image
 
+filterwarnings(action='ignore', category=UserWarning)
+
 # Sets device to cuda if available, cpu if otherwise.
 def set_device(print_device = False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -13,52 +16,41 @@ def set_device(print_device = False):
         print(f"Using {device} device")
     return device
 
-# Takes in a list of PIL iamges and puts them into a grid formation in one PIL image, which is then returned
-def image_grid(imgs, rows, cols):
-    w, h = imgs[0].size
-    print(f"beginning grid. len={len(imgs)}, (r,c)=({rows},{cols})")
-    while not len(imgs) == rows*cols:
-        imgs.append(Image.new(mode='RGB', size=(w,h)))
-    print("grid filled")
-    w, h = imgs[0].size
-    grid = Image.new('RGB', size=(cols*w, rows*h))
-    grid_w, grid_h = grid.size
-    
-    for i, img in enumerate(imgs):
-        grid.paste(img, box=(i%cols*w, i//cols*h))
-    return grid
-
 # Primary model for image training (specify 1 vs 3 channel)
 # CNN using a series of 3 convolutional layers + 
 # network of linear and ELU layers.
 class image_model(nn.Module):
-    def __init__(self, num_categories, num_channels, device=set_device(), hidden_filter_count=64, hidden_filter_count2=128):
+    def __init__(self, num_categories, num_channels, width, height, device=set_device(), hidden_filter_count=64, hidden_filter_count2=128):
         super(image_model, self).__init__()
 
+        self.norm = nn.LayerNorm(normalized_shape=(3,height, width),
+                                 device = device,
+                                 dtype=torch.float)
+        
         self.conv2D = nn.Conv2d(in_channels=num_channels,
                                 out_channels=hidden_filter_count,
                                 kernel_size=3,
                                 bias=True,
                                 device=device,
-                                dtype=torch.float64)
+                                dtype=torch.float)
 
         self.conv2D_hidden = nn.Conv2d(in_channels=hidden_filter_count,
                                     out_channels=hidden_filter_count2,
                                     kernel_size=3,
                                     bias=True,
                                     device=device,
-                                    dtype=torch.float64)
+                                    dtype=torch.float)
 
         self.conv2D_hidden2 = nn.Conv2d(in_channels=hidden_filter_count2,
                                     out_channels=hidden_filter_count2,
                                     kernel_size=3,
                                     bias=True,
                                     device=device,
-                                    dtype=torch.float64)
+                                    dtype=torch.float)
 
 
         self.maxpool = nn.MaxPool2d(kernel_size=2,
-                                dilation=1)
+                                    dilation=1,)
 
         self.elu = nn.ELU()
 
@@ -68,13 +60,14 @@ class image_model(nn.Module):
 
                                         self.conv2D_hidden,
                                         self.elu,
-                                        self.maxpool,
+                                        self.maxpool
 
-                                        self.conv2D_hidden2,
-                                        self.elu,
-                                        self.maxpool)
+                                        # self.conv2D_hidden2,
+                                        # self.elu,
+                                        # self.maxpool)
+                                        )
 
-        self.flatten = nn.Flatten()
+        self.flatten = nn.Flatten(start_dim=1)
 
         self.linear_elu_stack = nn.Sequential(nn.LazyLinear(out_features=1000),
                                                nn.ELU(),
@@ -83,18 +76,14 @@ class image_model(nn.Module):
                                                nn.Linear(1000,100),
                                                nn.ELU(),
                                                nn.Linear(100,num_categories))
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
+        x = self.norm(x)
         x = self.conv_block(x)
         x = self.flatten(x)
-
-        try:
-            x = self.linear_elu_stack(x)
-        except:
-            print("Additional reshaping...")
-            x = torch.reshape(x, (x.shape[0]*x.shape[1],))
-            x = self.linear_elu_stack(x)
-
+        x = self.linear_elu_stack(x)
+        x = self.softmax(x)
         return x
 
 # Tests a model's accuracy against a dataset and returns it as a decimal.
@@ -107,23 +96,31 @@ def test_accuracy(model, dataloader, device=set_device()):
         #fill answers with correct predictions based on labels
         for step, (images, labels) in enumerate(dataloader):
             images.to(device=device)
-            predicted = model(images)
-            batch_guesses = torch.argmax(predicted, dim=1)
-            for cur_guess in batch_guesses:
-                guesses.append(cur_guess.item())
-            for label in labels:
-                answers.append(label.item())
 
+            predicted = model(images)
+            batch_guesses = torch.round(predicted).cpu().detatch().numpy() #get numpy array of rounded guesses (0 or 1 for each attribute * batch_size)
+            for cur_guess in batch_guesses:
+                guesses.append(cur_guess)
+            for label in labels:
+                answers.append(label.cpu().detatch().numpy())
+
+        guess_array = np.array(guesses)
+        answer_array = np.array(answers)
         #calculate percent correct based on predictions and correct answers
         num_correct = 0.0
-        for i in range(len(guesses)):
-            if guesses[i] == answers[i]:
-                num_correct +=1
-        return num_correct/len(guesses)
+        num_images = guess_array.shape[0]
+        num_attr = guess_array.shape[1]
+        for i in range():
+            for j in range():
+                if guesses[i][j] == answers[i][j]:
+                    num_correct +=1
+        return num_correct/(num_image*num_attr)
 
 # Returns accuracy and loss data by epoch and batch
 def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, epoch_count, device=set_device()):
+    model.to(device=device)
     print("*****BEGIN TRAINING*****")
+    print(next(model.parameters()).device)
     #initializing data lists for plotting later
     accuracies_by_epoch = []
     accuracies_by_batch = []
@@ -134,11 +131,12 @@ def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, 
         pbar = tqdm(total=train_dataloader.__len__(),# batch count
                     desc=f"Training epoch {epoch+1}/{epoch_count}",
                     initial=0,
-                    unit = " batches")
-
+                    unit = " batches",
+                    position=0,
+                    leave=True)
         for step, (images, labels) in enumerate(train_dataloader):
+
             ##processing whole batches at a time
-            images.to(device=device)
             predicted = model(images)
             loss = loss_calc(predicted, labels)
             loss.backward()
