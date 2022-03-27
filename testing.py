@@ -29,6 +29,7 @@ def set_model_state(model):
     while not file_is_valid:
         file_path = fd.askopenfilename(title="Select a model state: ")
         try:
+            print("Loading state dict...")
             model.load_state_dict(torch.load(file_path))
             file_is_valid = True
         except:

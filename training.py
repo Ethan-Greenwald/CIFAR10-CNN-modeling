@@ -82,7 +82,7 @@ class image_model(nn.Module):
                                                nn.Linear(10000,1000,
                                                device=device),
                                                nn.ELU(),
-                                               
+
                                                nn.Linear(1000,num_categories,
                                                device=device))
 
@@ -112,7 +112,7 @@ class image_model(nn.Module):
         return x
 
 # Tests a model's accuracy against a dataset and returns it as a decimal.
-def test_accuracy(model, dataloader, device=set_device()):
+def test_accuracy(model, dataloader, ones_only=False, device=set_device()):
     with torch.no_grad():
         guesses = []
         answers = []
@@ -138,11 +138,23 @@ def test_accuracy(model, dataloader, device=set_device()):
         num_correct = 0.0
         num_images = guess_array.shape[0]
         num_attr = guess_array.shape[1]
-        for i in range(num_images):
-            for j in range(num_attr):
-                if guesses[i][j] == answers[i][j]:
-                    num_correct +=1
-        return num_correct/(num_images*num_attr)
+        if not ones_only:
+            for i in range(num_images):
+                for j in range(num_attr):
+                    if guesses[i][j] == answers[i][j]:
+                        num_correct +=1
+            return num_correct/(num_images*num_attr)
+        else:
+            total = 0
+            for i in range(num_images):
+                for j in range(num_attr):
+                    if answers[i][j] == 1:
+                        total += 1
+                        if guesses[i][j] == 1:
+                            num_correct += 1
+            return num_correct/total
+
+
 
 # Returns accuracy and loss data by epoch and batch
 def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, epoch_count, device=set_device()):

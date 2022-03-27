@@ -15,9 +15,9 @@ using_previous_model = False
 if input("Use previous model? (y/n)") == 'y':
     using_previous_model = True
 device = training.set_device(True)
-batch_size = 128
+batch_size = 64
 epoch_count = 10
-lr = 0.01
+lr = 1e-3
 
 num_features = 40 #40 feature annotations per image
 num_channels = 3
@@ -84,7 +84,7 @@ if not using_previous_model: #load dataset if training
 
     print("****DATA LOADED SUCCESSFULLY****")
 
-celeb_model = training.image_model(num_categories=num_features, num_channels=num_channels, width=178, height=218, device=device)
+celeb_model = training.image_model(num_categories=num_features, num_channels=num_channels, width=image_shape[0], height=image_shape[1], device=device)
 loss_calc = nn.BCELoss()
 optimizer = torch.optim.SGD(celeb_model.parameters(), lr=lr)
 
@@ -92,11 +92,10 @@ if using_previous_model:
     image = ToTensor()(testing.get_image(image_shape)) #get image tensor
     image_4d = image[None,...] #reshape to 4d input, since model is trained on batches this is like a batch of size 1
     celeb_model = testing.set_model_state(celeb_model) #retrieve saved model state
-    
-    use_percents = False
     if input("Use percent confidence? (y/n)") == 'y':
-        use_percents =True
-
+        use_percents = True
+    else:
+        use_percents = False
     ToPILImage()(image).show()
     if use_percents: 
         percents = testing.get_prediction_percents(celeb_model, image_4d, device)[0] #run through model and get array of percents for each attribute
