@@ -11,7 +11,9 @@ from torch.utils.data import Dataset, DataLoader
 
 
 #GOAL: Implement two networks: one that can detect facial attributes and one dedicated to marking facial landmarks (eyes, nose, mouth points)
-use_previous_model = False
+using_previous_model = False
+if input("Use previous model? (y/n)") == 'y':
+    using_previous_model = True
 device = training.set_device(True)
 batch_size = 128
 epoch_count = 10
@@ -20,6 +22,14 @@ lr = 0.01
 num_features = 40 #40 feature annotations per image
 num_channels = 3
 image_shape = (178,218)
+label_names = ["5_o_Clock_Shadow", "Arched_Eyebrows", "Attractive", "Bags_Under_Eyes", 
+                "Bald", "Bangs", "Big_Lips", "Big_Nose", "Black_Hair", "Blond_Hair", "Blurry", 
+                "Brown_Hair", "Bushy_Eyebrows", "Chubby", "Double_Chin", "Eyeglasses", "Goatee", 
+                "Gray_Hair", "Heavy_Makeup", "High_Cheekbones", "Male", "Mouth_Slightly_Open", 
+                "Mustache", "Narrow_Eyes", "No_Beard", "Oval_Face", "Pale_Skin", "Pointy_Nose", 
+                "Receding_Hairline", "Rosy_Cheeks", "Sideburns", "Smiling", "Straight_Hair", 
+                "Wavy_Hair", "Wearing_Earrings", "Wearing_Hat", "Wearing_Lipstick", 
+                "Wearing_Necklace", "Wearing_Necktie", "Young"]
 
 class CelebDataset(Dataset):
     def __init__(self, annotations_file, img_dir, train=True, transform=None, target_transform=None, device=training.set_device()):
@@ -60,41 +70,43 @@ class CelebDataset(Dataset):
             annotations = self.target_transform()(annotations)
         return image, annotations
 
-training_data = CelebDataset(annotations_file = 'celeb_data\list_attr_celeba.txt',
-                             img_dir = 'celeb_data\img_align_celeba',
-                             train=True,
-                             device=device)
-test_data = CelebDataset(annotations_file = 'celeb_data\list_attr_celeba.txt',
-                         img_dir = 'celeb_data\img_align_celeba',
-                         train=False,
-                         device=device)
+if not using_previous_model: #load dataset if training
+    training_data = CelebDataset(annotations_file = 'celeb_data\list_attr_celeba.txt',
+                                img_dir = 'celeb_data\img_align_celeba',
+                                train=True,
+                                device=device)
+    test_data = CelebDataset(annotations_file = 'celeb_data\list_attr_celeba.txt',
+                            img_dir = 'celeb_data\img_align_celeba',
+                            train=False,
+                            device=device)
+    train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-
-train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=True)
-test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
-
-print("****DATA LOADED SUCCESSFULLY****")
+    print("****DATA LOADED SUCCESSFULLY****")
 
 celeb_model = training.image_model(num_categories=num_features, num_channels=num_channels, width=178, height=218, device=device)
 loss_calc = nn.BCELoss()
-optimizer = torch.optim.Adam(celeb_model.parameters(), lr=lr)
+optimizer = torch.optim.SGD(celeb_model.parameters(), lr=lr)
 
-if use_previous_model:
+if using_previous_model:
     image = ToTensor()(testing.get_image(image_shape)) #get image tensor
     image_4d = image[None,...] #reshape to 4d input, since model is trained on batches this is like a batch of size 1
-    use_percents = False
-
     celeb_model = testing.set_model_state(celeb_model) #retrieve saved model state
+    
+    use_percents = False
+    if input("Use percent confidence? (y/n)") == 'y':
+        use_percents =True
+
     ToPILImage()(image).show()
     if use_percents: 
         percents = testing.get_prediction_percents(celeb_model, image_4d, device)[0] #run through model and get array of percents for each attribute
-        attrs = list(zip(test_data.label_names, percents))#zip labels with percents into list of tuples
+        attrs = list(zip(label_names, percents))#zip labels with percents into list of tuples
         sorted_attrs = sorted(attrs, key = lambda x: x[1], reverse=True) #sort percents in decending order
         print("\n****PREDICTIONS****\n")
         for attr, percent in sorted_attrs:
             print(f"{attr}: {(percent*100):.2f}%")
     else:
-        predictions = testing.get_prediction(celeb_model, image_4d, test_data.label_names, device)
+        attrs = testing.get_prediction(celeb_model, image_4d, label_names, device)
         print("\n****PREDICTIONS****\n")
         for attr in attrs:
             print(f"{attr}")

@@ -73,16 +73,16 @@ class image_model(nn.Module):
 
         self.linear_elu_stack = nn.Sequential(nn.LazyLinear(out_features=10000,
                                                device=device),
-
                                                nn.ELU(),
+
                                                nn.Linear(10000,10000,
                                                device=device),
-
                                                nn.ELU(),
+
                                                nn.Linear(10000,1000,
                                                device=device),
-
                                                nn.ELU(),
+                                               
                                                nn.Linear(1000,num_categories,
                                                device=device))
 
@@ -123,7 +123,7 @@ def test_accuracy(model, dataloader, device=set_device()):
         pbar = IncrementalBar(f"Testing accuracy: ", max=batch_count, suffix="%(percent)d%% done | approx. %(eta)d sec left")
         for step, (images, labels) in enumerate(dataloader):
             images = images.to(device=device)
-            
+
             predicted = model(images)
             batch_guesses = torch.round(predicted).cpu().numpy() #get numpy array of rounded guesses (0 or 1 for each attribute * batch_size)
             for cur_guess in batch_guesses:
@@ -169,6 +169,8 @@ def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, 
             optimizer.zero_grad()
             loss_by_batch.append(loss.item())
             pbar.next()
+            if step == batch_count-1:
+                print(f"Current guess: {predicted[0]}")
 
         #closing progress bar and printing epoch loss/accuracy
         pbar.finish()
