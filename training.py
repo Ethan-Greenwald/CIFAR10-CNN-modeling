@@ -1,6 +1,7 @@
 from warnings import filterwarnings
 import torch
 import torch.nn as nn
+from  torch.optim import lr_scheduler as sch
 import numpy as np
 from matplotlib import pyplot as plt
 from torchvision.transforms import ToPILImage
@@ -160,6 +161,12 @@ def test_accuracy(model, dataloader, ones_only=False, device=set_device()):
 def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, epoch_count, device=set_device()):
     path = input("Please enter a path to save model (saved as \'path_epochNum\'): ")
     model.to(device=device)
+
+    #setting up learning rate schedulers
+    plateau = sch.ReduceLROnPlateau(optimizer)
+    stepper = sch.MultiStepLR(optimizer, [epoch_count/2])
+    scheduler = sch.ChainedScheduler([plateau, stepper])
+
     print("*****BEGIN TRAINING*****")
     #initializing data lists for plotting later
     accuracies_by_epoch = []
@@ -183,7 +190,7 @@ def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, 
             pbar.next()
             if step == batch_count-1:
                 print(f"Current guess: {predicted[0]}")
-
+        scheduler.step()
         #closing progress bar and printing epoch loss/accuracy
         pbar.finish()
         average_epoch_loss = sum(loss_by_batch)/len(loss_by_batch)
@@ -194,7 +201,8 @@ def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, 
         accuracies_by_epoch.append(accuracy*100)
         print(f"    Accuracy = {(accuracy*100):.2f}%\n")
         epoch_path = f"{path}_{epoch}"
-        torch.save(model.state_dict(), epoch_path)
+        if epoch%5 == 0:
+            torch.save(model.state_dict(), epoch_path)
 
     return accuracies_by_epoch, accuracies_by_batch, loss_by_epoch, loss_by_batch
 
