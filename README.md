@@ -10,7 +10,7 @@ The current network is structured as a 3-layer convolutional neural network foll
 #### Helper Functions
 Included in this repo are several "helper" scripts that are used in training and testing. Specifically, `training.py` contains functions for training a model based on given hyperparameters, as well as saving model weight dicts and accuracy plots. For testing new images, `testing.py` has functions to load in a user-specified image and model weight dict. Included are two functions for getting predictions - `get_prediction()` and `get_prediction_percents()`. The percents function directly returns the model's predictions as decimal probabilities (i.e. multiply by 100 for an actual percent). This does not return actual label names. The regular one rounds these predictions, returning a list of the label names that have a probability higher than 50%. This returns a list of Strings rather than probabilities. 
 
-#### `main.py`
+#### Info on `main.py`
 The included main script combines user interface with the helper scripts to either train or test a new model. `main.py` takes care of the actual data processing and loading, as well as displaying predictions. 
 
 ### Dataset
@@ -21,7 +21,6 @@ This project was made possible by the CelebA Dataset, which is a collection of h
 
 
 
-This project was made possible by the CelebA Dataset
 @inproceedings{liu2015faceattributes,
   title = {Deep Learning Face Attributes in the Wild},
   author = {Liu, Ziwei and Luo, Ping and Wang, Xiaogang and Tang, Xiaoou},
