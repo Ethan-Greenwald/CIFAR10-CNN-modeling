@@ -8,6 +8,8 @@ import PIL.Image as Image
 import tkinter as tk
 from tkinter import filedialog as fd
 
+default_path = 'default'
+
 def get_image(shape):
     image_is_valid = False
     while not image_is_valid:
@@ -21,6 +23,9 @@ def get_image(shape):
 
 def set_model_state(model):
     file_is_valid = False
+    if input("Use default model? (y/n)") == 'y':
+        model.load_state_dict(torch.load(default_path))
+        return model
     while not file_is_valid:
         file_path = fd.askopenfilename(title="Select a model state: ")
         try:
