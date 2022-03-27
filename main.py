@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 #GOAL: Implement two networks: one that can detect facial attributes and one dedicated to marking facial landmarks (eyes, nose, mouth points)
-
+use_previous_model = False
 device = training.set_device(True)
 batch_size = 128
 epoch_count = 10
@@ -19,6 +19,7 @@ lr = 0.01
 
 num_features = 40 #40 feature annotations per image
 num_channels = 3
+image_shape = (178,218)
 
 class CelebDataset(Dataset):
     def __init__(self, annotations_file, img_dir, train=True, transform=None, target_transform=None, device=training.set_device()):
@@ -45,18 +46,18 @@ class CelebDataset(Dataset):
     def __len__(self):
         return self.length
 
+
     def __getitem__(self,idx):
         path_index = str(idx+1).zfill(6) + '.jpg'#formats string similar to '000137.jpg'
         img_path = os.path.join(self.img_dir, path_index)
-        image = read_image(img_path).to(self.device, torch.float)
-        annotations = torch.as_tensor(self.img_annotations[idx]).to(self.device, torch.float) #tensor of 0 or 1 for different attributes
+        image = read_image(img_path).to(torch.float)
+        annotations = torch.as_tensor(self.img_annotations[idx]).to(torch.float) #tensor of 0 or 1 for different attributes
 
         if self.transform:
             if self.transform is not ToTensor():
                 image = self.transform()(image)
         if self.target_transform:
             annotations = self.target_transform()(annotations)
-
         return image, annotations
 
 training_data = CelebDataset(annotations_file = 'celeb_data\list_attr_celeba.txt',
@@ -76,11 +77,30 @@ print("****DATA LOADED SUCCESSFULLY****")
 
 celeb_model = training.image_model(num_categories=num_features, num_channels=num_channels, width=178, height=218, device=device)
 loss_calc = nn.BCELoss()
-optimizer = torch.optim.SGD(celeb_model.parameters(), lr=lr)
+optimizer = torch.optim.Adam(celeb_model.parameters(), lr=lr)
 
-accuracies_by_epoch, accuracies_by_batch, loss_by_epoch, loss_by_batch = training.train_model(celeb_model, loss_calc, optimizer, 
-                                                                                              train_dataloader, test_dataloader, 
-                                                                                              epoch_count, device=device)
+if use_previous_model:
+    image = ToTensor()(testing.get_image(image_shape)) #get image tensor
+    image_4d = image[None,...] #reshape to 4d input, since model is trained on batches this is like a batch of size 1
+    use_percents = False
 
-training.save_model(celeb_model)
-training.plot_accuracy_and_loss(accuracies_by_epoch, losses_by_epoch, epoch_count)
+    celeb_model = testing.set_model_state(celeb_model) #retrieve saved model state
+    ToPILImage()(image).show()
+    if use_percents: 
+        percents = testing.get_prediction_percents(celeb_model, image_4d, device)[0] #run through model and get array of percents for each attribute
+        attrs = list(zip(test_data.label_names, percents))#zip labels with percents into list of tuples
+        sorted_attrs = sorted(attrs, key = lambda x: x[1], reverse=True) #sort percents in decending order
+        print("\n****PREDICTIONS****\n")
+        for attr, percent in sorted_attrs:
+            print(f"{attr}: {(percent*100):.2f}%")
+    else:
+        predictions = testing.get_prediction(celeb_model, image_4d, test_data.label_names, device)
+        print("\n****PREDICTIONS****\n")
+        for attr in attrs:
+            print(f"{attr}")
+else:
+    accuracies_by_epoch, accuracies_by_batch, loss_by_epoch, loss_by_batch = training.train_model(celeb_model, loss_calc, optimizer, 
+                                                                                                train_dataloader, test_dataloader, 
+                                                                                                epoch_count, device=device)
+    training.save_model(celeb_model)
+    training.plot_accuracy_and_loss(accuracies_by_epoch, loss_by_epoch, epoch_count)

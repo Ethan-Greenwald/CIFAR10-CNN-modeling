@@ -8,10 +8,10 @@ import PIL.Image as Image
 import tkinter as tk
 from tkinter import filedialog as fd
 
-root = tk.Tk()
-root.title("")
-root.resizable(False, False)
-root.geometry('300x150')
+# root = tk.Tk()
+# root.title("")
+# root.resizable(False, False)
+# root.geometry('300x150')
 
 def get_image(shape):
     image_is_valid = False
@@ -22,6 +22,7 @@ def get_image(shape):
             image_is_valid = True
         except:
             print("**ERROR** Image path is invalid!")
+    print(f"original shape: {input_image.size}")
     return input_image.resize(shape)
 
 def set_model_state(model):
@@ -35,7 +36,16 @@ def set_model_state(model):
             print("**ERROR** Model path is invalid!")
     return model
 
-def get_prediction(model, image, labels):
-    image_tensor = ToTensor()(image)
-    predicted = model(image_tensor)
-    return labels[torch.argmax(predicted)]
+def get_prediction(model, image, labels, device):
+    with torch.no_grad():
+        print("Processing image...")
+        image_tensor = ToTensor()(image)
+        predicted = model(image_tensor)
+    return labels[np.where(torch.round(predicted).cpu().numpy() == 1)]
+
+def get_prediction_percents(model, image, device):
+    with torch.no_grad():
+        print("Processing image...")
+        image_tensor = image.to(device, torch.float)
+        predicted = model(image_tensor)
+    return predicted.cpu().numpy()
