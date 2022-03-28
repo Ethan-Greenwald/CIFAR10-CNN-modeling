@@ -163,9 +163,7 @@ def train_model(model, loss_calc, optimizer, train_dataloader, test_dataloader, 
     model.to(device=device)
 
     #setting up learning rate schedulers
-    plateau = sch.ReduceLROnPlateau(optimizer)
-    stepper = sch.MultiStepLR(optimizer, [epoch_count/2])
-    scheduler = sch.ChainedScheduler([plateau, stepper])
+    scheduler = sch.MultiStepLR(optimizer, [epoch_count/2])
 
     print("*****BEGIN TRAINING*****")
     #initializing data lists for plotting later

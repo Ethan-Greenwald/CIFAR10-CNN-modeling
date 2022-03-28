@@ -17,7 +17,7 @@ if input("Use previous model? (y/n)") == 'y':
 device = training.set_device(True)
 batch_size = 64
 epoch_count = 20
-lr = 1e-2
+lr = 1e-1
 
 num_features = 40 #40 feature annotations per image
 num_channels = 3
